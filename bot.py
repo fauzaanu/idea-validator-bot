@@ -19,13 +19,14 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from telegram import ForceReply, Update
+from telegram import ForceReply, Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application,
     ContextTypes,
     MessageHandler,
     filters,
     CommandHandler,
+    ConversationHandler,
 )
 
 from datamodels import ValueFormula
@@ -42,38 +43,71 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
-# Define a few command handlers. These usually take the two arguments update and
-# context.
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /start is issued."""
+# Define conversation states
+PROBLEM, SOLUTION, RESULTS, EFFORT = range(4)
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Start the conversation and ask for the problem."""
     user = update.effective_user
     await update.message.reply_html(
-        rf"Hi {user.mention_html()}! Describe me your business idea.",
-        reply_markup=ForceReply(selective=True),
+        rf"Hi {user.mention_html()}! Let's discuss your business idea step by step."
     )
-    main_text = """
-Please describe the following elements of your business idea:
+    await update.message.reply_text(
+        "What problem does your product solve, and who has this problem?",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    return PROBLEM
 
-Problem: What problem does your product solve, and who has this problem?
-Solution: How does your product or service solve this problem?
-Results: How quickly can users expect to see results or benefits?
-Effort: What do users need to do to get results, and how easy is it for them?
+async def problem(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Store the problem and ask for solution."""
+    context.user_data['problem'] = update.message.text
+    await update.message.reply_text(
+        "How does your product or service solve this problem?"
+    )
+    return SOLUTION
+
+async def solution(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Store the solution and ask for results."""
+    context.user_data['solution'] = update.message.text
+    await update.message.reply_text(
+        "How quickly can users expect to see results or benefits?"
+    )
+    return RESULTS
+
+async def results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Store the results and ask for effort."""
+    context.user_data['results'] = update.message.text
+    await update.message.reply_text(
+        "What do users need to do to get results, and how easy is it for them?"
+    )
+    return EFFORT
+
+async def effort(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Store the effort and process the complete idea."""
+    context.user_data['effort'] = update.message.text
+    
+    # Combine all responses into one text
+    complete_idea = f"""
+Problem: {context.user_data['problem']}
+Solution: {context.user_data['solution']}
+Results: {context.user_data['results']}
+Effort: {context.user_data['effort']}
 """
-    await update.message.reply_text(main_text)
-
-
-async def idea_validation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("I will validate your idea. Please wait...")
-    # call gemini api with the business idea
+    
+    await update.message.reply_text("Thank you! I will now validate your complete idea...")
+    
+    # Call the LLM with the complete idea
     resp = google_structured_request(
         model="chat-bison-001",
         system_prompt="you are a business idea validator",
-        prompt=VALUE_FORMULA.format(idea=update.message.text),
+        prompt=VALUE_FORMULA.format(idea=complete_idea),
         response_model=ValueFormula,
         timeout=10,
     )
-
+    
     await update.message.reply_text(f"{resp.conclusion}")
+    return ConversationHandler.END
+
+
 
 
 if __name__ == "__main__":
@@ -83,13 +117,18 @@ if __name__ == "__main__":
 
     application = Application.builder().token(token).build()
 
-    # text handler
-    idea = MessageHandler(filters.TEXT & ~filters.COMMAND, idea_validation)
-    application.add_handler(idea)
-
-    # command handlers
-    start_handler = CommandHandler("start", start)
-    application.add_handler(start_handler)
+    # Add conversation handler
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            PROBLEM: [MessageHandler(filters.TEXT & ~filters.COMMAND, problem)],
+            SOLUTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, solution)],
+            RESULTS: [MessageHandler(filters.TEXT & ~filters.COMMAND, results)],
+            EFFORT: [MessageHandler(filters.TEXT & ~filters.COMMAND, effort)],
+        },
+        fallbacks=[],
+    )
+    application.add_handler(conv_handler)
 
 
 
