@@ -20,7 +20,17 @@ import os
 
 from dotenv import load_dotenv
 from telegram import ForceReply, Update
-from telegram.ext import Application, ContextTypes
+from telegram.ext import (
+    Application,
+    ContextTypes,
+    MessageHandler,
+    filters,
+    CommandHandler,
+)
+
+from datamodels import ValueFormula
+from prompts import VALUE_FORMULA
+from structuredllm.llm_wrapper import google_structured_request
 
 # Enable logging
 logging.basicConfig(
@@ -38,19 +48,32 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
     user = update.effective_user
     await update.message.reply_html(
-        rf"Hi {user.mention_html()}!",
+        rf"Hi {user.mention_html()}! Describe me your business idea.",
         reply_markup=ForceReply(selective=True),
     )
+    main_text = """
+Please describe the following elements of your business idea:
+
+Problem: What problem does your product solve, and who has this problem?
+Solution: How does your product or service solve this problem?
+Results: How quickly can users expect to see results or benefits?
+Effort: What do users need to do to get results, and how easy is it for them?
+"""
+    await update.message.reply_text(main_text)
 
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /help is issued."""
-    await update.message.reply_text("Help!")
+async def idea_validation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("I will validate your idea. Please wait...")
+    # call gemini api with the business idea
+    resp = google_structured_request(
+        model="chat-bison-001",
+        system_prompt="you are a business idea validator",
+        prompt=VALUE_FORMULA.format(idea=update.message.text),
+        response_model=ValueFormula,
+        timeout=10,
+    )
 
-
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Echo the user message."""
-    await update.message.reply_text(update.message.text)
+    await update.message.reply_text(f"{resp.conclusion}")
 
 
 if __name__ == "__main__":
@@ -60,6 +83,16 @@ if __name__ == "__main__":
 
     application = Application.builder().token(token).build()
 
+    # text handler
+    idea = MessageHandler(filters.TEXT & ~filters.COMMAND, idea_validation)
+    application.add_handler(idea)
+
+    # command handlers
+    start_handler = CommandHandler("start", start)
+    application.add_handler(start_handler)
+
+
+
     if dev_mode:
         # Webhook settings
         webhook_url = os.environ.get("WEBHOOK_URL")
@@ -67,16 +100,14 @@ if __name__ == "__main__":
 
         # Set webhook
         application.bot.set_webhook(
-            url=f"{webhook_url}/{token}",
-            drop_pending_updates=True
+            url=f"{webhook_url}/{token}", drop_pending_updates=True
         )
 
         application.run_webhook(
             listen="0.0.0.0",
             port=port,
             url_path=token,
-            webhook_url=f"{webhook_url}/{token}"
+            webhook_url=f"{webhook_url}/{token}",
         )
     else:
         application.run_polling()
-
