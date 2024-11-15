@@ -45,6 +45,8 @@ logger = logging.getLogger(__name__)
 
 # Define conversation states
 PROBLEM, SOLUTION, RESULTS, EFFORT = range(4)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Start the conversation and ask for the problem."""
     user = update.effective_user
@@ -57,34 +59,38 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return PROBLEM
 
+
 async def problem(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Store the problem and ask for solution."""
-    context.user_data['problem'] = update.message.text
+    context.user_data["problem"] = update.message.text
     await update.message.reply_text(
         "How does your product or service solve this problem?"
     )
     return SOLUTION
 
+
 async def solution(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Store the solution and ask for results."""
-    context.user_data['solution'] = update.message.text
+    context.user_data["solution"] = update.message.text
     await update.message.reply_text(
         "How quickly can users expect to see results or benefits?"
     )
     return RESULTS
 
+
 async def results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Store the results and ask for effort."""
-    context.user_data['results'] = update.message.text
+    context.user_data["results"] = update.message.text
     await update.message.reply_text(
         "What do users need to do to get results, and how easy is it for them?"
     )
     return EFFORT
 
+
 async def effort(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Store the effort and process the complete idea."""
-    context.user_data['effort'] = update.message.text
-    
+    context.user_data["effort"] = update.message.text
+
     # Combine all responses into one text
     complete_idea = f"""
 Problem: {context.user_data['problem']}
@@ -92,9 +98,11 @@ Solution: {context.user_data['solution']}
 Results: {context.user_data['results']}
 Effort: {context.user_data['effort']}
 """
-    
-    await update.message.reply_text("Thank you! I will now validate your complete idea...")
-    
+
+    await update.message.reply_text(
+        "Thank you! I will now validate your complete idea..."
+    )
+
     # Call the LLM with the complete idea
     resp = google_structured_request(
         model="chat-bison-001",
@@ -103,19 +111,17 @@ Effort: {context.user_data['effort']}
         response_model=ValueFormula,
         timeout=10,
     )
-    
+
     analysis = (
-        f"📊 Market Analysis: {resp.market_potential}\n\n"
-        f"⚙️ Feasibility: {resp.feasibility}\n\n"
-        f"💪 Competitive Edge: {resp.competitive_advantage}\n\n"
-        f"⚠️ Key Risks: {resp.risks}\n\n"
-        f"📋 Recommendation: {resp.recommendation}\n\n"
-        f"👉 Next Steps: {resp.next_steps}"
+        f"📊 Market Analysis\n{resp.market_potential}\n\n"
+        f"⚙️ Feasibility\n{resp.feasibility}\n\n"
+        f"💪 Competitive Edge\n{resp.competitive_advantage}\n\n"
+        f"⚠️ Key Risks\n{resp.risks}\n\n"
+        f"📋 Recommendation\n{resp.recommendation}\n\n"
+        f"👉 Next Steps\n{resp.next_steps}"
     )
     await update.message.reply_text(analysis)
     return ConversationHandler.END
-
-
 
 
 if __name__ == "__main__":
@@ -137,8 +143,6 @@ if __name__ == "__main__":
         fallbacks=[],
     )
     application.add_handler(conv_handler)
-
-
 
     if dev_mode:
         # Webhook settings
