@@ -1,15 +1,17 @@
 VALUE_FORMULA="""
-Alex Hormozi's value formula maximizes perceived value through four factors:
+As an experienced business advisor, analyze this business idea thoroughly:
 
-- Dream Outcome: The ideal result the customer seeks (higher is better)
-- Likelihood of Achievement: Confidence the customer has in achieving the outcome (more is better)
-- Time Delay: The time it takes to reach the outcome (shorter is better).
-- Effort and Sacrifice: The work or trade-offs required (lower is better).
+Business Idea Details:
+{idea}
 
-Formula:  
-Value = (Dream Outcome × Likelihood of Achievement) / (Time Delay × Effort and Sacrifice)
+Provide a comprehensive evaluation covering:
 
-Apply this formula to the following Business Idea: {idea}
+1. Market Potential: Assess the target market size and growth potential
+2. Feasibility: Evaluate how practical and achievable the solution is
+3. Competitive Advantage: Identify unique selling points and barriers to entry
+4. Risks: Highlight key challenges and potential obstacles
+5. Recommendation: Clear verdict on whether to pursue this idea
+6. Next Steps: If recommended, suggest 2-3 immediate actions to move forward
 
-Is this idea worth investing time or money on? Based on the facts give a brutually honest answer.
+Be direct and honest in your assessment, focusing on actionable insights.
 """

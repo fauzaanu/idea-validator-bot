@@ -104,7 +104,15 @@ Effort: {context.user_data['effort']}
         timeout=10,
     )
     
-    await update.message.reply_text(f"{resp.conclusion}")
+    analysis = (
+        f"📊 Market Analysis: {resp.market_potential}\n\n"
+        f"⚙️ Feasibility: {resp.feasibility}\n\n"
+        f"💪 Competitive Edge: {resp.competitive_advantage}\n\n"
+        f"⚠️ Key Risks: {resp.risks}\n\n"
+        f"📋 Recommendation: {resp.recommendation}\n\n"
+        f"👉 Next Steps: {resp.next_steps}"
+    )
+    await update.message.reply_text(analysis)
     return ConversationHandler.END
 
 
