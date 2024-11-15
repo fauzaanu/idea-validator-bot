@@ -46,6 +46,12 @@ logger = logging.getLogger(__name__)
 # Define conversation states
 PROBLEM, SOLUTION, RESULTS, EFFORT = range(4)
 
+async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Reset the conversation."""
+    context.user_data.clear()
+    await update.message.reply_text("Conversation reset. Use /start to begin again!")
+    return ConversationHandler.END
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Start the conversation and ask for the problem."""
@@ -54,7 +60,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         rf"Hi {user.mention_html()}! Let's discuss your business idea step by step."
     )
     await update.message.reply_text(
-        "What problem does your product solve, and who has this problem?",
+        "🎯 What problem are you solving and for whom?",
         reply_markup=ReplyKeyboardRemove(),
     )
     return PROBLEM
@@ -64,7 +70,7 @@ async def problem(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Store the problem and ask for solution."""
     context.user_data["problem"] = update.message.text
     await update.message.reply_text(
-        "How does your product or service solve this problem?"
+        "💡 How do you solve this problem?"
     )
     return SOLUTION
 
@@ -73,7 +79,7 @@ async def solution(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Store the solution and ask for results."""
     context.user_data["solution"] = update.message.text
     await update.message.reply_text(
-        "How quickly can users expect to see results or benefits?"
+        "⏱️ How quickly will users see results?"
     )
     return RESULTS
 
@@ -82,7 +88,7 @@ async def results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Store the results and ask for effort."""
     context.user_data["results"] = update.message.text
     await update.message.reply_text(
-        "What do users need to do to get results, and how easy is it for them?"
+        "🎮 How much effort is required from users?"
     )
     return EFFORT
 
@@ -140,7 +146,7 @@ if __name__ == "__main__":
             RESULTS: [MessageHandler(filters.TEXT & ~filters.COMMAND, results)],
             EFFORT: [MessageHandler(filters.TEXT & ~filters.COMMAND, effort)],
         },
-        fallbacks=[],
+        fallbacks=[CommandHandler("reset", reset)],
     )
     application.add_handler(conv_handler)
 
